@@ -1,0 +1,96 @@
+R"SQL_COMMAND(
+
+    CREATE TABLE ezcat_db_version
+    (
+    version   integer
+    )
+
+)SQL_COMMAND",
+R"SQL_COMMAND(
+
+    CREATE TABLE catalogues
+    (
+    id        integer primary key,
+    name      text not null
+    )
+
+)SQL_COMMAND",
+R"SQL_COMMAND(
+
+    INSERT INTO  catalogues (name) values ('Default Catalogue')
+
+)SQL_COMMAND",
+R"SQL_COMMAND(
+
+    CREATE TABLE disks
+    (
+    id        integer primary key,
+    catid     integer not null,
+    name      text not null,
+    catpath   text not null,
+    cattime   integer not null,
+    devname   text,
+    fslabel   text,
+    fstype    text,
+    fssize    integer not null,
+    fsfree    integer not null,
+    isroot    integer,
+    mountcmd  text,
+    umountcmd text,
+    uuid      text
+    )
+
+)SQL_COMMAND",
+R"SQL_COMMAND(
+
+    CREATE TABLE directories
+    (
+    id           integer primary key,
+    diskid       integer not null,
+    parent       integer not null,
+    numitems     integer,
+    name         text,
+    modtime      integer,
+    fowner       text,
+    fgroup       text,
+    qpermissions integer,
+    accessdenied integer not null
+    )
+
+)SQL_COMMAND",
+R"SQL_COMMAND(
+
+    CREATE TABLE files
+    (
+    id           integer primary key,
+    dirid        integer not null,
+    name         text not null,
+    size         integer,
+    type         integer,
+    modtime      integer,
+    fowner       text,
+    fgroup       text,
+    qpermissions integer
+    )
+
+)SQL_COMMAND",
+R"SQL_COMMAND(
+
+create index directories_diskid_idx on directories(diskid)
+
+)SQL_COMMAND",
+R"SQL_COMMAND(
+
+create index directories_parent_idx on directories(parent)
+
+)SQL_COMMAND",
+R"SQL_COMMAND(
+
+create index files_dirid_idx on files(dirid)
+
+)SQL_COMMAND",
+R"SQL_COMMAND(
+
+create index directories_names_idx on directories(name collate nocase)
+
+)SQL_COMMAND"
