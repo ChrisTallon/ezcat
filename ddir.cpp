@@ -81,9 +81,9 @@ bool DDir::loadFromDB()
     catID = query.value(0).toLongLong();
     diskName = query.value(1).toString();
 
-    containerURL = query.value(2).toString();
-    containerURL += diskPath;
-    fullURL = containerURL + "/" + dirName;
+    containerPath = query.value(2).toString();
+    containerPath += diskPath;
+    fullPath = containerPath + "/" + dirName;
 
     if (catID)
     {
@@ -103,8 +103,8 @@ void DDir::loadFromFileSystem()
 {
     if (fsLoaded) return;
 
-    qdir.setPath(fullURL);
-    qfiContainer = QFileInfo(containerURL);
+    qdir.setPath(fullPath);
+    qfiContainer = QFileInfo(containerPath);
 
     fsLoaded = true;
 }
@@ -128,7 +128,7 @@ bool DDir::isReachable()
 void DDir::osOpen()
 {
     if (!isReachable()) return;
-    if (!QDesktopServices::openUrl(QUrl(QString("file://") + fullURL)))
+    if (!QDesktopServices::openUrl(QUrl::fromLocalFile(fullPath)))
         Utils::errorMessageBox(NULL, "O/S open directory failed");
 }
 

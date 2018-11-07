@@ -76,9 +76,9 @@ bool DFile::loadFromDB()
     catID = query.value(0).toLongLong();
     diskName = query.value(1).toString();
 
-    containerURL = query.value(2).toString();
-    containerURL += diskPath;
-    fullURL = containerURL + "/" + fileName;
+    containerPath = query.value(2).toString();
+    containerPath += diskPath;
+    fullPath = containerPath + "/" + fileName;
 
     if (catID)
     {
@@ -94,8 +94,8 @@ void DFile::loadFromFileSystem()
 {
     if (fsLoaded) return;
 
-    qfile.setFileName(fullURL);
-    qfiContainer = QFileInfo(containerURL);
+    qfile.setFileName(fullPath);
+    qfiContainer = QFileInfo(containerPath);
 
     fsLoaded = true;
 }
@@ -137,14 +137,14 @@ bool DFile::isContainerReachable()
 void DFile::osOpen()
 {
     if (!isReachable()) return;
-    if (!QDesktopServices::openUrl(QUrl(QString("file://") + fullURL)))
+    if (!QDesktopServices::openUrl(QUrl::fromLocalFile(fullPath)))
         Utils::errorMessageBox(NULL, "O/S open file failed");
 }
 
 void DFile::osOpenContainer()
 {
     if (!isContainerReachable()) return;
-    if (!QDesktopServices::openUrl(QUrl(QString("file://") + containerURL)))
+    if (!QDesktopServices::openUrl(QUrl::fromLocalFile(containerPath)))
         Utils::errorMessageBox(NULL, "O/S open file's location failed");
 }
 

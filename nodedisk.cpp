@@ -187,7 +187,7 @@ bool NodeDisk::isReachable()
 
 void NodeDisk::osOpen() const
 {
-    if (!QDesktopServices::openUrl(QUrl(catPath)))
+    if (!QDesktopServices::openUrl(QUrl::fromLocalFile(catPath)))
         Utils::errorMessageBox(NULL, "O/S open location failed");
 }
 

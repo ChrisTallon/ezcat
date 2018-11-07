@@ -73,8 +73,8 @@ private:
     QString lastModifiedFullText;
     QString permissionsText;
     QString diskPath;
-    QString fullURL;
-    QString containerURL;
+    QString fullPath;
+    QString containerPath;
     QDir qdir;
     QFileInfo qfiContainer;
     QString dirStats;
