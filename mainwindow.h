@@ -48,6 +48,7 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent, const QString& cliDBFile);
     ~MainWindow();
+    static QWidget* msgboxParent();
 
 public slots:
     void updateCataloguerProgress(qint64 numObjects);
@@ -112,6 +113,8 @@ private slots:
     void requestRenameDisk(qint64 diskID, QString newName);
 
 private:
+    static QWidget* mainwindow;
+
     Ui::MainWindow *ui;
     QIcon iconGoUp;
     QIcon iconGoPrevious;

@@ -36,7 +36,7 @@ bool NodeCatalogue::rename(const QString& _newName)
     QString newName = _newName.trimmed();
     if (newName.isEmpty()) return false;
 
-    if (!dbman.startTransaction()) { Utils::errorMessageBox(NULL, "Database Error:\nrename: Transaction start error"); return false; }
+    if (!db.startTransaction()) { Utils::errorMessageBox("Database Error:\nrename: Transaction start error"); return false; }
 
     QSqlQuery query;
     query.prepare("update catalogues set name = :newname where id = :id");
@@ -44,7 +44,7 @@ bool NodeCatalogue::rename(const QString& _newName)
     query.bindValue(":id", id);
     if (query.exec())
     {
-        if (dbman.commitTransaction())
+        if (db.commitTransaction())
         {
             name = newName;
             return true;
@@ -53,7 +53,7 @@ bool NodeCatalogue::rename(const QString& _newName)
     }
     else
     {
-        dbman.rollbackTransaction();
+        db.rollbackTransaction();
         return false;
     }
 }
@@ -67,7 +67,7 @@ bool NodeCatalogue::loadChildren()
 
     if (!disksModel.select())
     {
-        Utils::errorMessageBox(NULL, "RootNode: Failed to execute disks query");
+        Utils::errorMessageBox("RootNode: Failed to execute disks query");
         return false;
     }
 
@@ -91,9 +91,9 @@ QString NodeCatalogue::summaryText() const
 
 void NodeCatalogue::removeFromDB()
 {
-    if (!dbman.startTransaction())
+    if (!db.startTransaction())
     {
-        Utils::errorMessageBox(NULL, "Database Error:\nremoveFromDB: Start transaction error");
+        Utils::errorMessageBox("Database Error:\nremoveFromDB: Start transaction error");
         deleteFinished(this, false);
         return;
     }
@@ -101,40 +101,40 @@ void NodeCatalogue::removeFromDB()
     QSqlQuery query;
     if (!query.exec(QString("delete from files where dirid in (select id from directories where diskid in (select id from disks where catid = %1))").arg(id)))
     {
-        Utils::errorMessageBox(NULL, "Database Error:\nremoveFromDB: Query 1 fail");
-        dbman.rollbackTransaction();
+        Utils::errorMessageBox("Database Error:\nremoveFromDB: Query 1 fail");
+        db.rollbackTransaction();
         deleteFinished(this, false);
         return;
     }
 
     if (!query.exec(QString("delete from directories where diskid in (select id from disks where catid = %1)").arg(id)))
     {
-        Utils::errorMessageBox(NULL, "Database Error:\nremoveFromDB: Query 2 fail");
-        dbman.rollbackTransaction();
+        Utils::errorMessageBox("Database Error:\nremoveFromDB: Query 2 fail");
+        db.rollbackTransaction();
         deleteFinished(this, false);
         return;
     }
 
     if (!query.exec(QString("delete from disks where catid = %1").arg(id)))
     {
-        Utils::errorMessageBox(NULL, "Database Error:\nremoveFromDB: Query 3 fail");
-        dbman.rollbackTransaction();
+        Utils::errorMessageBox("Database Error:\nremoveFromDB: Query 3 fail");
+        db.rollbackTransaction();
         deleteFinished(this, false);
         return;
     }
 
     if (!query.exec(QString("delete from catalogues where id = %1").arg(id)))
     {
-        Utils::errorMessageBox(NULL, "Database Error:\nremoveFromDB: Query 4 fail");
-        dbman.rollbackTransaction();
+        Utils::errorMessageBox("Database Error:\nremoveFromDB: Query 4 fail");
+        db.rollbackTransaction();
         deleteFinished(this, false);
         return;
     }
 
-    if (!dbman.commitTransaction())
+    if (!db.commitTransaction())
     {
-        Utils::errorMessageBox(NULL, "Database Error:\nremoveFromDB: Commit transaction fail");
-        dbman.rollbackTransaction();
+        Utils::errorMessageBox("Database Error:\nremoveFromDB: Commit transaction fail");
+        db.rollbackTransaction();
         deleteFinished(this, false);
         return;
     }
@@ -149,7 +149,7 @@ NodeCatalogue* NodeCatalogue::createCatalogue(const QString& name)
     query.bindValue(":newname", name);
     if (!query.exec())
     {
-        Utils::errorMessageBox(NULL, "Database Error:\ncreateCatalogue: Query fail");
+        Utils::errorMessageBox("Database Error:\ncreateCatalogue: Query fail");
         return NULL;
     }
     qint64 newCatID = query.lastInsertId().toLongLong();

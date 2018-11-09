@@ -16,7 +16,6 @@
  */
 
 #include <QDebug>
-#include <QWidget>
 #include <QFileInfo>
 #include <QSqlDatabase>
 #include <QSqlQuery>
@@ -26,23 +25,57 @@
 
 #include "db.h"
 
-DB::DB()
-{}
+QString DB::fileName;
 
-bool DB::initLib()
+DB::DB()
 {
-    db = QSqlDatabase::addDatabase("QSQLITE");
-    if (!db.isValid())
+}
+
+DB::~DB()
+{
+    bool removeDB;
+    QString conName;
+
+    if (secondary)
     {
-        Utils::errorMessageBox(guiParent, "Qt SQLite failed to initialise. Please ensure the Qt 5 SQLite 3 database driver is installed.");
+        // As per removedatabase docs, remove db connection after all DB objects have gone out of scope
+        removeDB = qdp->isValid();
+        if (removeDB) conName = qdp->connectionName();
+    }
+
+    delete qdp; // Force destruction of QSqlDatabase here
+
+    // Only do this for secondary connections. removing the default connection causes a segfault
+    if (secondary && removeDB) if (removeDB) QSqlDatabase::removeDatabase(conName);
+}
+
+bool DB::initLib(const QString& secondaryName)
+{
+    /* Would prefer to have the QSqlDatabase object as a class member, but it has to be destroyed
+     * before calling removeDatabase(), so it is moved to the heap here
+     */
+
+    if (secondaryName.isEmpty())
+    {
+        qdp = new QSqlDatabase(QSqlDatabase::addDatabase("QSQLITE"));
+    }
+    else
+    {
+        secondary = true;
+        qdp = new QSqlDatabase(QSqlDatabase::addDatabase("QSQLITE", secondaryName));
+    }
+
+    if (!qdp->isValid())
+    {
+        Utils::errorMessageBox("Qt SQLite failed to initialise. Please ensure the Qt 5 SQLite 3 database driver is installed.");
         return false;
     }
     return true;
 }
 
-void DB::setGUIParent(QWidget *gp)
+QSqlDatabase& DB::getqdb()
 {
-    guiParent = gp;
+    return *qdp;
 }
 
 bool DB::openDB(const QString& _fileName)
@@ -53,22 +86,38 @@ bool DB::openDB(const QString& _fileName)
     QFileInfo checkExists(fileName);
     if (!checkExists.exists())
     {
-        Utils::errorMessageBox(guiParent, QString("Database file not found: ") + fileName);
+        Utils::errorMessageBox(QString("Database file not found: ") + fileName);
         return false;
     }
 
-    db.setDatabaseName(fileName);
+    qdp->setDatabaseName(fileName);
 
-    if (!db.open())
+    if (!qdp->open())
     {
-        Utils::errorMessageBox(guiParent, "Failed to open database");
+        Utils::errorMessageBox("Failed to open database");
         return false;
     }
 
     if (!checkDBContent())
     {
-        db.close();
-        Utils::errorMessageBox(guiParent, "Database not in expected format");
+        qdp->close();
+        Utils::errorMessageBox("Database not in expected format");
+        return false;
+    }
+
+    dbIsOpen = true;
+    return true;
+}
+
+bool DB::openDB() // Secondary connections. Uses stored static fileName
+{
+    if (dbIsOpen) return false;
+
+    qdp->setDatabaseName(fileName);
+
+    if (!qdp->open())
+    {
+        Utils::errorMessageBox("Failed to open database");
         return false;
     }
 
@@ -80,8 +129,8 @@ void DB::closeDB()
 {
     if (!dbIsOpen) return;
     dbIsOpen = false;
-    db.close();
-    fileName.clear();
+    qdp->close();
+    if (!secondary) fileName.clear();
 }
 
 bool DB::makeNewDB(const QString& newFileName)
@@ -89,14 +138,14 @@ bool DB::makeNewDB(const QString& newFileName)
     QFileInfo checkExists(newFileName);
     if (checkExists.exists())
     {
-        Utils::errorMessageBox(guiParent, "This file already exists! Please name a new non-existant file");
+        Utils::errorMessageBox("This file already exists! Please name a new non-existant file");
         return false;
     }
 
-    db.setDatabaseName(newFileName);
-    if (!db.open())
+    qdp->setDatabaseName(newFileName);
+    if (!qdp->open())
     {
-        Utils::errorMessageBox(guiParent, "Failed to open new database file for writing");
+        Utils::errorMessageBox("Failed to open new database file for writing");
         return false;
     }
     fileName = newFileName;
@@ -117,16 +166,16 @@ bool DB::makeNewDB(const QString& newFileName)
     {
         if (!query.exec(sql[i]))
         {
-            Utils::errorMessageBox(guiParent, "Failed to execute schema SQL");
-            dbman.closeDB();
+            Utils::errorMessageBox("Failed to execute schema SQL");
+            closeDB();
             return false;
         }
     }
 
     if (!query.exec(QString("INSERT INTO ezcat_db_version (version) values (%1)").arg(DB_VERSION)))
     {
-        Utils::errorMessageBox(guiParent, "Database error");
-        dbman.closeDB();
+        Utils::errorMessageBox("Database error");
+        closeDB();
         return false;
     }
     return true;
@@ -144,17 +193,17 @@ bool DB::checkDBContent() const
 
 bool DB::startTransaction()
 {
-    return db.transaction();
+    return qdp->transaction();
 }
 
 bool DB::commitTransaction()
 {
-    return db.commit();
+    return qdp->commit();
 }
 
 bool DB::rollbackTransaction()
 {
-    return db.rollback();
+    return qdp->rollback();
 }
 
 void DB::compact() const
@@ -173,7 +222,7 @@ DBStats DB::getStats() const
 {
     QSqlQuery query;
     struct DBStats dbstats;
-    dbstats.size = dbman.getFileSize();
+    dbstats.size = getFileSize();
 
     query.exec(QString("select count(*) from catalogues"));
     query.next();

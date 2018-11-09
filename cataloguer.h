@@ -26,6 +26,8 @@ class QDir;
 class QString;
 class NodeDisk;
 
+#include "db.h"
+
 class Cataloguer: public QObject
 {
     Q_OBJECT
@@ -54,12 +56,13 @@ private:
     QString newPath;
 
     void recurse(const QDir& dir, qint64 dirID); // throws int
+    DB* cdb;
     NodeDisk* disk;
     qint64 totalDirs = 0;
     qint64 totalFiles = 0;
-    QSqlQuery dirQuery;
-    QSqlQuery fileQuery;
-    QSqlQuery numItemsQuery;
+    QSqlQuery* dirQuery;
+    QSqlQuery* fileQuery;
+    QSqlQuery* numItemsQuery;
     QStorageInfo rootStorageInfo;
     QStorageInfo subCheckStorageInfo;
     bool abortNow = false;

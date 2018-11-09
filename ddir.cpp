@@ -129,7 +129,7 @@ void DDir::osOpen()
 {
     if (!isReachable()) return;
     if (!QDesktopServices::openUrl(QUrl::fromLocalFile(fullPath)))
-        Utils::errorMessageBox(NULL, "O/S open directory failed");
+        Utils::errorMessageBox("O/S open directory failed");
 }
 
 const QString& DDir::getLastModifiedFullText()
@@ -191,7 +191,7 @@ void DDir::recurse(qint64 dirID, qint64& numDirectories, qint64& numFiles, qint6
 
     if (!b1 || !b2 || !b3 || !b4 || !b5)
     {
-        Utils::errorMessageBox(NULL, "Database error");
+        Utils::errorMessageBox("Database error");
         return;
     }
 

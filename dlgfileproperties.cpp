@@ -32,7 +32,7 @@ DlgFileProperties::DlgFileProperties(QWidget *t_parent, DFile* t_file) :
     ui->labelIcon->setPixmap(filePixmap);
     //ui->lFullPath->setStyleSheet("* { background-color: rgba(0, 0, 0, 0); }");
 
-    if (!file->loadFromDB()) Utils::errorMessageBox(t_parent, "Database error");
+    if (!file->loadFromDB()) Utils::errorMessageBox("Database error");
     file->loadFromFileSystem();
 
     if (file->getType() == TYPE_FILE)

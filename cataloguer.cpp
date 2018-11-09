@@ -50,27 +50,35 @@ void Cataloguer::go()
 {
     try
     {
-        QSqlQuery updateDiskQuery;
+        // Get a secondary database connection
+        cdb = new DB();
+        if (!cdb->initLib("cataloguer")) throw 5;
+        if (!cdb->openDB()) throw 6;
+
+        QSqlQuery updateDiskQuery(cdb->getqdb());
         if (!updateDiskQuery.prepare("update disks set catid = :catid, name = :name, catpath = :catpath, cattime = :cattime, "
                                      "devname = :devname, fslabel = :fslabel, fstype = :fstype, fssize = :fssize, "
                                      "fsfree = :fsfree, isroot = :isroot, uuid = :uuid where id = :id")) throw 10;
 
-        if (!numItemsQuery.prepare("update directories set numitems = :numitems where id = :dirid")) throw 20;
+        numItemsQuery = new QSqlQuery(cdb->getqdb());
+        if (!numItemsQuery->prepare("update directories set numitems = :numitems where id = :dirid")) throw 20;
 
-        if (!dirQuery.prepare("insert into directories (diskid, parent, name, modtime, fowner, fgroup, qpermissions, accessdenied) "
+        dirQuery = new QSqlQuery(cdb->getqdb());
+        if (!dirQuery->prepare("insert into directories (diskid, parent, name, modtime, fowner, fgroup, qpermissions, accessdenied) "
                                       "values (:diskid, :parent, :name, :modtime, :fowner, :fgroup, :qpermissions, :accessdenied)")) throw 30;
 
-        if (!fileQuery.prepare("insert into files (dirid, name, size, type, modtime, fowner, fgroup, qpermissions) "
+        fileQuery = new QSqlQuery(cdb->getqdb());
+        if (!fileQuery->prepare("insert into files (dirid, name, size, type, modtime, fowner, fgroup, qpermissions) "
                                       "values (:dirid, :name, :size, :type, :modtime, :fowner, :fgroup, :qpermissions)")) throw 40;
 
+        QSqlQuery otherQueries(cdb->getqdb());
 
-        if (!dbman.startTransaction())                                   throw 50;
+        if (!cdb->startTransaction())                                      throw 50;
 
-        QSqlQuery indexQuery;
-        if (!indexQuery.exec("drop index directories_diskid_idx"))       throw 60;
-        if (!indexQuery.exec("drop index directories_parent_idx"))       throw 70;
-        if (!indexQuery.exec("drop index files_dirid_idx"))              throw 80;
-        if (!indexQuery.exec("drop index directories_names_idx"))        throw 90;
+        if (!otherQueries.exec("drop index directories_diskid_idx"))       throw 60;
+        if (!otherQueries.exec("drop index directories_parent_idx"))       throw 70;
+        if (!otherQueries.exec("drop index files_dirid_idx"))              throw 80;
+        if (!otherQueries.exec("drop index directories_names_idx"))        throw 90;
 
         QDir root(newPath);
         rootStorageInfo = QStorageInfo(root);
@@ -92,7 +100,7 @@ void Cataloguer::go()
 
         if (disk) // Updating a disk
         {
-            if (!disk->removeContentsFromDBNT()) throw 100;
+            if (!disk->removeContentsFromDBNT(otherQueries)) throw 100;
 
             qint64 timeNow = QDateTime::currentDateTime().toSecsSinceEpoch();
 
@@ -115,23 +123,23 @@ void Cataloguer::go()
         }
         else
         {
-            disk = NodeDisk::createDisk(catID, newDiskName, newPath, rootStorageInfo.device(), rootStorageInfo.name(),
+            disk = NodeDisk::createDisk(otherQueries, catID, newDiskName, newPath, rootStorageInfo.device(), rootStorageInfo.name(),
                                         rootStorageInfo.fileSystemType(), rootStorageInfo.bytesTotal(), rootStorageInfo.bytesFree(), isRoot, blkid);
             if (!disk) throw 120;
         }
 
         // Make a root directory
         QFileInfo rootDirInfo(newPath);
-        dirQuery.bindValue(":diskid", disk->getID());
-        dirQuery.bindValue(":parent", 0);
-        dirQuery.bindValue(":name", QVariant());
-        dirQuery.bindValue(":modtime", rootDirInfo.lastModified().toSecsSinceEpoch());
-        dirQuery.bindValue(":fowner", rootDirInfo.owner());
-        dirQuery.bindValue(":fgroup", rootDirInfo.group());
-        dirQuery.bindValue(":qpermissions", static_cast<int>(rootDirInfo.permissions()));
-        dirQuery.bindValue(":accessdenied", 0);
-        if (!dirQuery.exec()) throw 130;
-        if (!disk->loadRootDirID()) throw 140;
+        dirQuery->bindValue(":diskid", disk->getID());
+        dirQuery->bindValue(":parent", 0);
+        dirQuery->bindValue(":name", QVariant());
+        dirQuery->bindValue(":modtime", rootDirInfo.lastModified().toSecsSinceEpoch());
+        dirQuery->bindValue(":fowner", rootDirInfo.owner());
+        dirQuery->bindValue(":fgroup", rootDirInfo.group());
+        dirQuery->bindValue(":qpermissions", static_cast<int>(rootDirInfo.permissions()));
+        dirQuery->bindValue(":accessdenied", 0);
+        if (!dirQuery->exec()) throw 130;
+        if (!disk->loadRootDirID(otherQueries)) throw 140;
         ++numObjects;
 
         recurse(root, disk->getRootDirID());
@@ -139,12 +147,18 @@ void Cataloguer::go()
 
         emit reindexing();
 
-        if (!indexQuery.exec("create index directories_diskid_idx on directories(diskid)"))               throw 250;
-        if (!indexQuery.exec("create index directories_parent_idx on directories(parent)"))               throw 260;
-        if (!indexQuery.exec("create index files_dirid_idx on files(dirid)"))                             throw 270;
-        if (!indexQuery.exec("create index directories_names_idx on directories(name collate nocase)"))   throw 280;
+        if (!otherQueries.exec("create index directories_diskid_idx on directories(diskid)"))               throw 250;
+        if (!otherQueries.exec("create index directories_parent_idx on directories(parent)"))               throw 260;
+        if (!otherQueries.exec("create index files_dirid_idx on files(dirid)"))                             throw 270;
+        if (!otherQueries.exec("create index directories_names_idx on directories(name collate nocase)"))   throw 280;
 
-        if (!dbman.commitTransaction()) throw 290;
+        if (!cdb->commitTransaction()) throw 290;
+        cdb->closeDB();
+
+        delete fileQuery;
+        delete dirQuery;
+        delete numItemsQuery;
+        delete cdb;
 
         emit finished(disk);
     }
@@ -152,7 +166,9 @@ void Cataloguer::go()
     {
         savedError = e;
         qDebug() << "Cataloguer error: " << e;
-        if      (e == 10) qDebug() << "Update disk query prepare failed";
+        if      (e == 5) qDebug() << "Failed to get private DB connection";
+        else if (e == 6) qDebug() << "Open DB failed";
+        else if (e == 10) qDebug() << "Update disk query prepare failed";
         else if (e == 20) qDebug() << "NumItems query prepare failed";
         else if (e == 30) qDebug() << "Directories query prepare failed";
         else if (e == 40) qDebug() << "Files query prepare failed";
@@ -200,13 +216,24 @@ void Cataloguer::go()
         case 80:
         case 70:
         case 60:
-            dbman.rollbackTransaction();
+            cdb->rollbackTransaction();
             [[fallthrough]];
         case 50:
         case 40:
+            delete fileQuery;
+            [[fallthrough]];
         case 30:
+            delete dirQuery;
+            [[fallthrough]];
         case 20:
+            delete numItemsQuery;
+            [[fallthrough]];
         case 10:
+            cdb->closeDB();
+            [[fallthrough]];
+        case 6:
+        case 5:
+            delete cdb;
             emit finished(NULL);
         }
     }
@@ -234,9 +261,9 @@ void Cataloguer::recurse(const QDir& dir, qint64 dirid) // throws int
     QFileInfoList ql = dir.entryInfoList(QDir::Dirs | QDir::Files | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System);
     totalDirs += ql.size();
 
-    numItemsQuery.bindValue(":numitems", ql.size());
-    numItemsQuery.bindValue(":dirid", dirid);
-    if (!numItemsQuery.exec()) throw 200;
+    numItemsQuery->bindValue(":numitems", ql.size());
+    numItemsQuery->bindValue(":dirid", dirid);
+    if (!numItemsQuery->exec()) throw 200;
 
     foreach(QFileInfo info, ql)
     {
@@ -252,16 +279,16 @@ void Cataloguer::recurse(const QDir& dir, qint64 dirid) // throws int
             if (info.isSymLink()) size = 0;
             else size = info.size();
 
-            fileQuery.bindValue(":dirid", dirid);
-            fileQuery.bindValue(":name", info.fileName());
-            fileQuery.bindValue(":size", size);
-            fileQuery.bindValue(":type", type);
-            fileQuery.bindValue(":modtime", info.lastModified().toSecsSinceEpoch());
-            fileQuery.bindValue(":fowner", info.owner());
-            fileQuery.bindValue(":fgroup", info.group());
-            fileQuery.bindValue(":qpermissions", static_cast<int>(info.permissions()));
+            fileQuery->bindValue(":dirid", dirid);
+            fileQuery->bindValue(":name", info.fileName());
+            fileQuery->bindValue(":size", size);
+            fileQuery->bindValue(":type", type);
+            fileQuery->bindValue(":modtime", info.lastModified().toSecsSinceEpoch());
+            fileQuery->bindValue(":fowner", info.owner());
+            fileQuery->bindValue(":fgroup", info.group());
+            fileQuery->bindValue(":qpermissions", static_cast<int>(info.permissions()));
 
-            if (!fileQuery.exec()) throw 220;
+            if (!fileQuery->exec()) throw 220;
             if (++numObjects % 1000 == 0) emit numObjectsFound(numObjects);
         }
         else if (info.isDir())
@@ -273,34 +300,34 @@ void Cataloguer::recurse(const QDir& dir, qint64 dirid) // throws int
                 accessDeniedPaths.append(info.absoluteFilePath());
             }
 
-            dirQuery.bindValue(":diskid", disk->getID());
-            dirQuery.bindValue(":parent", dirid);
-            dirQuery.bindValue(":name", info.fileName());
-            dirQuery.bindValue(":modtime", info.lastModified().toSecsSinceEpoch());
-            dirQuery.bindValue(":fowner", info.owner());
-            dirQuery.bindValue(":fgroup", info.group());
-            dirQuery.bindValue(":qpermissions", static_cast<int>(info.permissions()));
-            dirQuery.bindValue(":accessdenied", accessDenied);
+            dirQuery->bindValue(":diskid", disk->getID());
+            dirQuery->bindValue(":parent", dirid);
+            dirQuery->bindValue(":name", info.fileName());
+            dirQuery->bindValue(":modtime", info.lastModified().toSecsSinceEpoch());
+            dirQuery->bindValue(":fowner", info.owner());
+            dirQuery->bindValue(":fgroup", info.group());
+            dirQuery->bindValue(":qpermissions", static_cast<int>(info.permissions()));
+            dirQuery->bindValue(":accessdenied", accessDenied);
 
-            if (!dirQuery.exec()) throw 230;
+            if (!dirQuery->exec()) throw 230;
             if (++numObjects % 1000 == 0) emit numObjectsFound(numObjects);
 
-            qint64 newDirID = dirQuery.lastInsertId().toLongLong();
+            qint64 newDirID = dirQuery->lastInsertId().toLongLong();
             QDir childDir(info.absoluteFilePath());
             recurse(childDir, newDirID);
         }
         else // pipes, devices ...
         {
-            fileQuery.bindValue(":dirid", dirid);
-            fileQuery.bindValue(":name", info.fileName());
-            fileQuery.bindValue(":size", info.size());
-            fileQuery.bindValue(":type", TYPE_OTHERFILEUNKNOWN);
-            fileQuery.bindValue(":modtime", info.lastModified().toSecsSinceEpoch());
-            fileQuery.bindValue(":fowner", info.owner());
-            fileQuery.bindValue(":fgroup", info.group());
-            fileQuery.bindValue(":qpermissions", static_cast<int>(info.permissions()));
+            fileQuery->bindValue(":dirid", dirid);
+            fileQuery->bindValue(":name", info.fileName());
+            fileQuery->bindValue(":size", info.size());
+            fileQuery->bindValue(":type", TYPE_OTHERFILEUNKNOWN);
+            fileQuery->bindValue(":modtime", info.lastModified().toSecsSinceEpoch());
+            fileQuery->bindValue(":fowner", info.owner());
+            fileQuery->bindValue(":fgroup", info.group());
+            fileQuery->bindValue(":qpermissions", static_cast<int>(info.permissions()));
 
-            if (!fileQuery.exec()) throw 240;
+            if (!fileQuery->exec()) throw 240;
             if (++numObjects % 1000 == 0) emit numObjectsFound(numObjects);
         }
     }

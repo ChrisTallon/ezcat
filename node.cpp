@@ -153,7 +153,7 @@ void Node::eachDiskInModel(QSqlTableModel& disksModel, std::function<void (NodeD
 
         if (!newDisk->loadRootDirID())
         {
-            Utils::errorMessageBox(NULL, QString("Database Error:\neachDiskInModel: Failed to load root dir ID for disk %1").arg(newDisk->getID()));
+            Utils::errorMessageBox(QString("Database Error:\neachDiskInModel: Failed to load root dir ID for disk %1").arg(newDisk->getID()));
             delete newDisk;
         }
         else

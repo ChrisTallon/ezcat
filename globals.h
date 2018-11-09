@@ -28,7 +28,7 @@ QT_END_NAMESPACE
 extern QSettings settings;
 
 #include "db.h"
-extern DB dbman;
+extern DB db;
 
 extern QIcon catalogueIcon;
 extern QIcon diskIcon;

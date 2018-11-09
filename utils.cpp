@@ -1,19 +1,21 @@
 #include <QMessageBox>
+#include <QDebug>
+#include "mainwindow.h"
 
 #include "utils.h"
 
-void Utils::errorMessageBox(QWidget* parent, const QString& message)
+void Utils::errorMessageBox(const QString& message)
 {
-    QMessageBox msgBox(parent);
+    QMessageBox msgBox(MainWindow::msgboxParent());
     msgBox.setWindowTitle("Error");
     msgBox.setText(message);
     msgBox.setIcon(QMessageBox::Critical);
     msgBox.exec();
 }
 
-void Utils::errorMessageBoxNonBlocking(QWidget *parent, const QString &message)
+void Utils::errorMessageBoxNonBlocking(const QString &message)
 {
-    QMessageBox* msgBox = new QMessageBox(parent);
+    QMessageBox* msgBox = new QMessageBox(MainWindow::msgboxParent());
     msgBox->setWindowTitle("Error");
     msgBox->setText(message);
     msgBox->setIcon(QMessageBox::Critical);

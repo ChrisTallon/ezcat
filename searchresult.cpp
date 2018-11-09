@@ -187,14 +187,14 @@ void SearchResult::loadDObject()
     else if (type == TYPE_DIR)
     {
         DDir* ddir = new DDir(id);
-        if (!ddir->loadFromDB()) Utils::errorMessageBox(NULL, "Database error");
+        if (!ddir->loadFromDB()) Utils::errorMessageBox("Database error");
         ddir->loadFromFileSystem();
         dObject = ddir;
     }
     else if (type >= TYPE_FILE)
     {
         DFile* dfile = new DFile(id);
-        if (!dfile->loadFromDB()) Utils::errorMessageBox(NULL, "Database error");
+        if (!dfile->loadFromDB()) Utils::errorMessageBox("Database error");
         dfile->loadFromFileSystem();
         dObject = dfile;
     }

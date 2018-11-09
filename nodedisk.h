@@ -36,6 +36,7 @@ public:
          const QString& fsType, qint64 fsSize, qint64 fsFree, int isRoot,
          const QString& mountCommand, const QString& unmountCommand, const QString& uuid);
     bool loadRootDirID();
+    bool loadRootDirID(QSqlQuery& getRootDirQuery);
     virtual bool loadChildren();
 
     qint64 getCatID() const { return catID; }
@@ -53,7 +54,7 @@ public:
 
     virtual QString summaryText() const;
     void removeFromDB();
-    bool removeContentsFromDBNT() const;
+    bool removeContentsFromDBNT(QSqlQuery& query) const;
     bool moveToCatalogue(qint64 newCat);
     bool rename(const QString& newName);
     void setCommands(const QString &newMountCommand, const QString &newUnmountCommand);
@@ -69,7 +70,7 @@ public:
              qint64 catTime, const QString& deviceName, const QString& fsLabel,
              const QString& fsType, qint64 fsSize, qint64 fsFree, int isRoot, const QString& uuid);
 
-    static NodeDisk* createDisk(qint64 catID, const QString &name, const QString &catPath,
+    static NodeDisk* createDisk(QSqlQuery& query, qint64 catID, const QString &name, const QString &catPath,
                                 const QString& deviceName, const QString& fsLabel,
                                 const QString &fsType, qint64 fsSize, qint64 fsFree, int isRoot, const QString& uuid);
 

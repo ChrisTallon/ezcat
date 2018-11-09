@@ -37,7 +37,7 @@ bool NodeRoot::loadChildren()
     catsModel.setEditStrategy(QSqlTableModel::OnManualSubmit);
     if (!catsModel.select())
     {
-        Utils::errorMessageBox(NULL, "Database Error:\nNodeRoot: Query 1 fail");
+        Utils::errorMessageBox("Database Error:\nNodeRoot: Query 1 fail");
         return false;
     }
 
@@ -60,7 +60,7 @@ bool NodeRoot::loadChildren()
 
     if (!disksModel.select())
     {
-        Utils::errorMessageBox(NULL, "Database Error:\nNodeRoot: Query 2 fail");
+        Utils::errorMessageBox("Database Error:\nNodeRoot: Query 2 fail");
         return false;
     }
 

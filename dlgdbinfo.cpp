@@ -33,8 +33,8 @@ DlgDBInfo::DlgDBInfo(QWidget *parent) :
     ui->setupUi(this);
     setWindowFlag(Qt::WindowContextHelpButtonHint, false);
 
-    ui->ldbFileName->setText(dbman.getFileName());
-    DBStats dbstats = dbman.getStats();
+    ui->ldbFileName->setText(db.getFileName());
+    DBStats dbstats = db.getStats();
     ui->ldbFileSize->setText(fileSizeToHR(dbstats.size));
     ui->lNumCats->setText(QLocale(QLocale::English).toString(dbstats.numCats));
     ui->lNumDisks->setText(QLocale(QLocale::English).toString(dbstats.numDisks));
@@ -56,7 +56,7 @@ void DlgDBInfo::on_bCompact_clicked()
     progressDialog->setValue(0);
 
     QThread* thread = new QThread;
-    runningCompactor = new BackgroundTask( [] { dbman.compact(); } );
+    runningCompactor = new BackgroundTask( [] { db.compact(); } );
     runningCompactor->moveToThread(thread);
 
     connect(thread, SIGNAL(started()), runningCompactor, SLOT(go()));
@@ -73,6 +73,6 @@ void DlgDBInfo::compactorFinished()
     delete progressDialog;
     runningCompactor = NULL;
     progressDialog = NULL;
-    DBStats dbstats = dbman.getStats();
+    DBStats dbstats = db.getStats();
     ui->ldbFileSize->setText(fileSizeToHR(dbstats.size));
 }

@@ -55,13 +55,14 @@
 
 #include "mainwindow.h"
 
+QWidget* MainWindow::mainwindow = NULL;
+
 MainWindow::MainWindow(QWidget *parent, const QString& cliDBFile) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
+    mainwindow = this;
     ui->setupUi(this);
-
-    dbman.setGUIParent(this);
 
     iconGoUp = QIcon::fromTheme("go-up");
     iconGoPrevious = QIcon::fromTheme("go-previous");
@@ -110,7 +111,7 @@ MainWindow::MainWindow(QWidget *parent, const QString& cliDBFile) :
 
     if (!cliDBFile.isEmpty())
     {
-        if (dbman.openDB(cliDBFile))
+        if (db.openDB(cliDBFile))
         {
             databaseJustOpened();
         }
@@ -137,6 +138,7 @@ MainWindow::MainWindow(QWidget *parent, const QString& cliDBFile) :
 
 MainWindow::~MainWindow()
 {
+    mainwindow = NULL;
     if (tableSelectedFile) delete tableSelectedFile;
     if (tableSelectedDir) delete tableSelectedDir;
     if (treeSelectedDir) delete treeSelectedDir;
@@ -145,7 +147,12 @@ MainWindow::~MainWindow()
     delete tm;
     delete fms;
     delete fm;
-    dbman.closeDB();
+    db.closeDB();
+}
+
+QWidget* MainWindow::msgboxParent()
+{
+    return mainwindow; // If there is no MainWindow this still returns a useful NULL
 }
 
 void MainWindow::closeEvent(QCloseEvent* /*event*/)
@@ -170,8 +177,8 @@ void MainWindow::on_actionDatabaseNew_triggered()
 {
     QString fileName = QFileDialog::getSaveFileName(this, "New Database File", "", "EZ Cat Database (*.db);;All Files (*)");
     if (fileName.isEmpty()) return;
-    if (dbman.getDBisOpen()) on_actionDatabaseClose_triggered();
-    if (dbman.makeNewDB(fileName))
+    if (db.getDBisOpen()) on_actionDatabaseClose_triggered();
+    if (db.makeNewDB(fileName))
     {
         settings.setValue("dbfile", fileName);
         databaseJustOpened();
@@ -182,8 +189,8 @@ void MainWindow::on_actionDatabaseLoad_triggered()
 {
     QString fileName = QFileDialog::getOpenFileName(this, "Open Database File", "", "EZ Cat Database (*.db);;All Files (*)");
     if (fileName.isEmpty()) return;
-    if (dbman.getDBisOpen()) on_actionDatabaseClose_triggered();
-    if (dbman.openDB(fileName))
+    if (db.getDBisOpen()) on_actionDatabaseClose_triggered();
+    if (db.openDB(fileName))
     {
         settings.setValue("dbfile", fileName);
         databaseJustOpened();
@@ -222,7 +229,7 @@ void MainWindow::on_actionDatabaseClose_triggered()
     tm = NULL;
     fms = NULL;
     fm = NULL;
-    dbman.closeDB();
+    db.closeDB();
     ui->locSearch->setLocationText();
     ui->actionDatabaseClose->setEnabled(false);
     ui->actionDatabaseProperties->setEnabled(false);
@@ -275,7 +282,7 @@ void MainWindow::on_actionCatalogueDelete_triggered()
     QModelIndex usQmi = tms->mapToSource(ui->treeView->currentIndex());
     Node* n = static_cast<Node*>(usQmi.internalPointer());
     Q_ASSERT(n->getType() == TYPE_CAT);
-    QMessageBox msgBox;
+    QMessageBox msgBox(this);
     msgBox.setText(QString("Are you sure you want to delete the catalogue: '") + n->getName() + "'?");
     msgBox.setInformativeText("All disks contained in this catalogue will also be deleted. This cannot be un-done.");
     msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
@@ -446,7 +453,7 @@ void MainWindow::on_actionDiskDelete_triggered()
     NodeDisk* diskToDel = getCurrentDisk(NULL);
     if (!diskToDel) return;
 
-    QMessageBox msgBox;
+    QMessageBox msgBox(this);
     msgBox.setText(QString("Are you sure you want to delete the disk: '") + diskToDel->getName() + "'?");
     msgBox.setInformativeText("This cannot be un-done.");
     msgBox.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
@@ -500,7 +507,7 @@ void MainWindow::on_actionDiskMount_triggered()
     }
     else
     {
-        Utils::errorMessageBox(this, "Mount command failed");
+        Utils::errorMessageBox("Mount command failed");
     }
 }
 
@@ -516,7 +523,7 @@ void MainWindow::on_actionDiskUnmount_triggered()
     }
     else
     {
-        Utils::errorMessageBox(this, "Un-mount command failed");
+        Utils::errorMessageBox("Un-mount command failed");
     }
 }
 
@@ -745,7 +752,7 @@ bool MainWindow::getConfigDatabase()
     QVariant qvDBFileName = settings.value("dbfile");
     if (qvDBFileName == QVariant()) return false;
     QString fileName = qvDBFileName.toString();
-    return dbman.openDB(fileName);
+    return db.openDB(fileName);
 }
 
 void MainWindow::databaseJustOpened()
@@ -785,7 +792,7 @@ void MainWindow::databaseJustOpened()
 
     tableToFilesDirs();
 
-    DBStats dbstats = dbman.getStats();
+    DBStats dbstats = db.getStats();
     QString allStats("Database opened. ");
     allStats += QLocale(QLocale::English).toString(dbstats.numCats) + " catalogues, ";
     allStats += QLocale(QLocale::English).toString(dbstats.numDisks) + " disks, ";
@@ -832,7 +839,7 @@ void MainWindow::cataloguerFinished(NodeDisk* newDisk)
     }
 
     int e = runningCataloguer->getError();
-    if (e) Utils::errorMessageBoxNonBlocking(this, QString("Failed to catalogue the disk. Error = %1").arg(e));
+    if (e) Utils::errorMessageBoxNonBlocking(QString("Failed to catalogue the disk. Error = %1").arg(e));
 
     delete runningCataloguer;
     delete progressDialog;
@@ -850,7 +857,7 @@ void MainWindow::catalogueDeleteFinsihed(NodeCatalogue* catToDel, bool success)
 {
     if (!success)
     {
-        Utils::errorMessageBoxNonBlocking(this, "Error deleting catalogue from database");
+        Utils::errorMessageBoxNonBlocking("Error deleting catalogue from database");
         return;
     }
 
@@ -865,7 +872,7 @@ void MainWindow::diskDeleteFinsihed(NodeDisk* diskToDel, bool success)
 {
     if (!success)
     {
-        Utils::errorMessageBoxNonBlocking(this, "Error deleting disk from database");
+        Utils::errorMessageBoxNonBlocking("Error deleting disk from database");
         return;
     }
 
@@ -1222,7 +1229,7 @@ void MainWindow::treeView_current_changed(const QModelIndex& /*current*/, const 
         NodeDir* nd = static_cast<NodeDir*>(t);
         if (nd->isAccessDenied())
         {
-            Utils::errorMessageBox(this, "Access was denied.");
+            Utils::errorMessageBox("Access was denied.");
             ui->treeView->setCurrentIndex(previous);
             return;
         }
@@ -1231,7 +1238,7 @@ void MainWindow::treeView_current_changed(const QModelIndex& /*current*/, const 
         statusLabel.setText(t->summaryText());
 
         treeSelectedDir = new DDir(t->getID());
-        if (!treeSelectedDir->loadFromDB()) Utils::errorMessageBox(this, "Database error");
+        if (!treeSelectedDir->loadFromDB()) Utils::errorMessageBox("Database error");
         treeSelectedDir->loadFromFileSystem();
 
         setActions();
@@ -1381,7 +1388,7 @@ bool MainWindow::dfSelectedDirAccessCheck()
 
     if (tableSelectedDir->isAccessDenied())
     {
-        Utils::errorMessageBox(this, "Access was denied.");
+        Utils::errorMessageBox("Access was denied.");
         return false;
     }
     return true;
@@ -1457,13 +1464,13 @@ void MainWindow::tableView_ddf_current_changed(const QModelIndex& /*current*/, c
     if (type >= TYPE_FILE)
     {
         tableSelectedFile = new DFile(id);
-        if (!tableSelectedFile->loadFromDB()) Utils::errorMessageBox(this, "Database error");
+        if (!tableSelectedFile->loadFromDB()) Utils::errorMessageBox("Database error");
         tableSelectedFile->loadFromFileSystem();
     }
     else if (type == TYPE_DIR)
     {
         tableSelectedDir = new DDir(id);
-        if (!tableSelectedDir->loadFromDB()) Utils::errorMessageBox(this, "Database error");
+        if (!tableSelectedDir->loadFromDB()) Utils::errorMessageBox("Database error");
         tableSelectedDir->loadFromFileSystem();
     }
     else if (type == TYPE_DISK)

@@ -112,12 +112,12 @@ void DlgNewDisk::done(int code)
     {
         if (ui->editNewDiskName->text().size() == 0)
         {
-            Utils::errorMessageBox(this, "Please enter a name for the new disk");
+            Utils::errorMessageBox("Please enter a name for the new disk");
             return;
         }
         else if (ui->editLocation->text().size() == 0)
         {
-            Utils::errorMessageBox(this, "Please enter a location to catalogue");
+            Utils::errorMessageBox("Please enter a location to catalogue");
             return;
         }
         else
@@ -126,13 +126,13 @@ void DlgNewDisk::done(int code)
 
             if (!target.exists())
             {
-                Utils::errorMessageBox(this, "Location to catalogue does not exist");
+                Utils::errorMessageBox("Location to catalogue does not exist");
                 return;
             }
 
             if (!target.isDir())
             {
-                Utils::errorMessageBox(this, "Location to catalogue is not a directory");
+                Utils::errorMessageBox("Location to catalogue is not a directory");
                 return;
             }
 

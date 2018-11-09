@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
 
     // Set up globals
 
-    if (!dbman.initLib()) return -1;
+    if (!db.initLib()) return -1;
     initIcons();
 
     // Run

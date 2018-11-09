@@ -27,7 +27,7 @@
 #include "globals.h"
 
 QSettings settings("Loggytronic", "ezcat");
-DB dbman;
+DB db;
 
 QIcon catalogueIcon;
 QIcon diskIcon;

@@ -20,8 +20,6 @@
 
 #include <QSqlDatabase>
 
-class QWidget;
-
 struct DBStats
 {
     qint64 numCats;
@@ -35,13 +33,16 @@ class DB
 {
 public:
     DB();
+    ~DB();
 
     bool getDBisOpen() const { return dbIsOpen; }
-    const QString& getFileName() const { return fileName; }
+    static const QString& getFileName() { return fileName; }
 
-    bool initLib();
-    void setGUIParent(QWidget*);
+    bool initLib(const QString& secondaryName = QString());
+    QSqlDatabase& getqdb();
+
     bool openDB(const QString& fileName);
+    bool openDB(); // secondary connections
     void closeDB();
     bool makeNewDB(const QString& fileName);
     bool startTransaction();
@@ -54,10 +55,11 @@ public:
 private:
     bool checkDBContent() const;
 
-    QString fileName;
-    QWidget* guiParent = NULL;
-    QSqlDatabase db;
+    QSqlDatabase* qdp;
+    bool secondary = false;
     bool dbIsOpen = false;
+
+    static QString fileName; // static - share this between all instances
 };
 
 #endif // DB_H

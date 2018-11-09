@@ -138,14 +138,14 @@ void DFile::osOpen()
 {
     if (!isReachable()) return;
     if (!QDesktopServices::openUrl(QUrl::fromLocalFile(fullPath)))
-        Utils::errorMessageBox(NULL, "O/S open file failed");
+        Utils::errorMessageBox("O/S open file failed");
 }
 
 void DFile::osOpenContainer()
 {
     if (!isContainerReachable()) return;
     if (!QDesktopServices::openUrl(QUrl::fromLocalFile(containerPath)))
-        Utils::errorMessageBox(NULL, "O/S open file's location failed");
+        Utils::errorMessageBox("O/S open file's location failed");
 }
 
 const QString& DFile::getLastModifiedFullText()

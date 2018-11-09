@@ -52,12 +52,20 @@ bool NodeDisk::loadRootDirID()
     return true;
 }
 
+bool NodeDisk::loadRootDirID(QSqlQuery& getRootDirQuery)
+{
+    if (!getRootDirQuery.exec(QString("select id from directories where diskid = %1 and parent = 0").arg(id))) return false;
+    if (!getRootDirQuery.next()) return false;
+    rootDirID = getRootDirQuery.value(0).toLongLong();
+    return true;
+}
+
 bool NodeDisk::moveToCatalogue(qint64 newCat)
 {
     QSqlQuery query;
     if (!query.exec(QString("update disks set catid = %1 where id = %2").arg(newCat).arg(id)))
     {
-        Utils::errorMessageBox(NULL, "Database Error:\ncmoveToCatalogue: Query fail");
+        Utils::errorMessageBox("Database Error:\ncmoveToCatalogue: Query fail");
         return false;
     }
     catID = newCat;
@@ -69,7 +77,7 @@ bool NodeDisk::rename(const QString& _newName)
     QString newName = _newName.trimmed();
     if (newName.isEmpty()) return false;
 
-    if (!dbman.startTransaction()) { Utils::errorMessageBox(NULL, "Disk::rename: Transaction start error"); return false; }
+    if (!db.startTransaction()) { Utils::errorMessageBox("Disk::rename: Transaction start error"); return false; }
 
     QSqlQuery query;
     query.prepare("update disks set name = :newname where id = :existingid");
@@ -77,7 +85,7 @@ bool NodeDisk::rename(const QString& _newName)
     query.bindValue(":existingid", id);
     if (query.exec())
     {
-        if (dbman.commitTransaction())
+        if (db.commitTransaction())
         {
             name = newName;
             return true;
@@ -86,7 +94,7 @@ bool NodeDisk::rename(const QString& _newName)
     }
     else
     {
-        dbman.rollbackTransaction();
+        db.rollbackTransaction();
         return false;
     }
 }
@@ -188,7 +196,7 @@ bool NodeDisk::isReachable()
 void NodeDisk::osOpen() const
 {
     if (!QDesktopServices::openUrl(QUrl::fromLocalFile(catPath)))
-        Utils::errorMessageBox(NULL, "O/S open location failed");
+        Utils::errorMessageBox("O/S open location failed");
 }
 
 bool NodeDisk::loadChildren()
@@ -220,9 +228,9 @@ QString NodeDisk::summaryText() const
 
 void NodeDisk::removeFromDB()
 {
-    if (!dbman.startTransaction())
+    if (!db.startTransaction())
     {
-        Utils::errorMessageBox(NULL, "Database Error:\ndelDisk: Transaction start error");
+        Utils::errorMessageBox("Database Error:\ndelDisk: Transaction start error");
         emit deleteFinished(this, false);
         return;
     }
@@ -230,32 +238,32 @@ void NodeDisk::removeFromDB()
     QSqlQuery query;
     if (!query.exec(QString("delete from files where dirid in (select id from directories where diskid = %1)").arg(id)))
     {
-        Utils::errorMessageBox(NULL, "Database Error:\ndelDisk: Query 1 fail");
-        dbman.rollbackTransaction();
+        Utils::errorMessageBox("Database Error:\ndelDisk: Query 1 fail");
+        db.rollbackTransaction();
         emit deleteFinished(this, false);
         return;
     }
 
     if (!query.exec(QString("delete from directories where diskid = %1").arg(id)))
     {
-        Utils::errorMessageBox(NULL, "Database Error:\ndelDisk: Query 2 fail");
-        dbman.rollbackTransaction();
+        Utils::errorMessageBox("Database Error:\ndelDisk: Query 2 fail");
+        db.rollbackTransaction();
         emit deleteFinished(this, false);
         return;
     }
 
     if (!query.exec(QString("delete from disks where id = %1").arg(id)))
     {
-        Utils::errorMessageBox(NULL, "Database Error:\ndelDisk: Query 4 fail");
-        dbman.rollbackTransaction();
+        Utils::errorMessageBox("Database Error:\ndelDisk: Query 4 fail");
+        db.rollbackTransaction();
         emit deleteFinished(this, false);
         return;
     }
 
-    if (!dbman.commitTransaction())
+    if (!db.commitTransaction())
     {
-        Utils::errorMessageBox(NULL, "Database Error:\ndelDisk: Commit fail");
-        dbman.rollbackTransaction();
+        Utils::errorMessageBox("Database Error:\ndelDisk: Commit fail");
+        db.rollbackTransaction();
         emit deleteFinished(this, false);
         return;
     }
@@ -263,22 +271,21 @@ void NodeDisk::removeFromDB()
     emit deleteFinished(this, true);
 }
 
-bool NodeDisk::removeContentsFromDBNT() const
+bool NodeDisk::removeContentsFromDBNT(QSqlQuery& query) const
 {
     // Deletes everything except the disks row
     // Doesn't work in a transaction
     // For use by Cataloguer in update mode, there will already be a transaction
 
-    QSqlQuery query;
     if (!query.exec(QString("delete from files where dirid in (select id from directories where diskid = %1)").arg(id)))
     {
-        Utils::errorMessageBox(NULL, "Database Error:\nUdelDisk: Query 1 fail");
+        Utils::errorMessageBox("Database Error:\nUdelDisk: Query 1 fail");
         return false;
     }
 
     if (!query.exec(QString("delete from directories where diskid = %1").arg(id)))
     {
-        Utils::errorMessageBox(NULL, "Database Error:\nUdelDisk: Query 2 fail");
+        Utils::errorMessageBox("Database Error:\nUdelDisk: Query 2 fail");
         return false;
     }
 
@@ -306,12 +313,11 @@ void NodeDisk::update(qint64 _catID, const QString& _name, const QString& _catPa
     childrenLoaded = false;
 }
 
-NodeDisk* NodeDisk::createDisk(qint64 catID, const QString& name, const QString& catPath,
+NodeDisk* NodeDisk::createDisk(QSqlQuery& query, qint64 catID, const QString& name, const QString& catPath,
                                const QString& deviceName, const QString& fsLabel,
                                const QString& fsType, qint64 fsSize, qint64 fsFree, int isRoot, const QString& uuid)
 {
     // Make a disk object and get the ID
-    QSqlQuery query;
     if (!query.prepare("insert into disks ( catid,  name,  catpath,  cattime,  devname,  fslabel,  fstype,  fssize,  fsfree,  isroot,  uuid) "
                                   "values (:catid, :name, :catpath, :cattime, :devname, :fslabel, :fstype, :fssize, :fsfree, :isroot, :uuid)"))
     {

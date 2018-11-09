@@ -75,7 +75,7 @@ DlgDiskDirProperties::DlgDiskDirProperties(QWidget *t_parent, NodeDisk* t_disk) 
     // ---
 
     ddir = new DDir(disk->getRootDirID());
-    if (!ddir->loadFromDB()) Utils::errorMessageBox(this, "Database error");
+    if (!ddir->loadFromDB()) Utils::errorMessageBox("Database error");
     ddir->loadFromFileSystem();
 
     dpw = new DirPropertiesWidget(this, ddir);
