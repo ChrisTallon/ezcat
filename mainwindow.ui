@@ -123,7 +123,7 @@
    </widget>
    <widget class="QMenu" name="menuCatalogue">
     <property name="title">
-     <string>Cata&amp;logue</string>
+     <string>&amp;Catalogue</string>
     </property>
     <addaction name="actionCatalogueNew"/>
     <addaction name="actionCatalogueRename"/>
@@ -146,14 +146,14 @@
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
-     <string>Help</string>
+     <string>&amp;Help</string>
     </property>
     <addaction name="actionAbout"/>
     <addaction name="actionAbout_Qt"/>
    </widget>
    <widget class="QMenu" name="menuFile">
     <property name="title">
-     <string>File</string>
+     <string>&amp;File</string>
     </property>
     <addaction name="actionFileOpen"/>
     <addaction name="actionFileOpenContaining"/>
