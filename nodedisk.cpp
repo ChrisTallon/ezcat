@@ -222,7 +222,7 @@ bool NodeDisk::loadChildren()
 
 QString NodeDisk::summaryText() const
 {
-    QString text = "Disk: " + name + ". " + dirStats(rootDirID);
+    QString text = "Disk: " + name + ". Size: " + fileSizeToHR(fsSize) + ", free: " + fileSizeToHR(fsFree) + ". " + dirStats(rootDirID);
     return text;
 }
 
