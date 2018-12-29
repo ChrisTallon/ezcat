@@ -108,7 +108,8 @@ DISTFILES += \
     info.txt \
     db-schema.txt \
     LICENCE.txt \
-    ezcat.desktop
+    ezcat.desktop \
+    README.md
 
 target.path = /usr/bin
 INSTALLS += target
